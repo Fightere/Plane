@@ -1,23 +1,34 @@
 # -*- coding:utf-8 -*-
 import pygame
 import time
+import random
 from pygame.locals import *
 
 
-# 飞机类
-class HeroPlane(object):
-    def __init__(self,screen_temp):
-        self.x = 230
-        self.y = 700
+class BasePlane(object):
+    def __init__(self,screen_temp,x,y,image_name):
+        self.x = x
+        self.y = y
         self.screen = screen_temp
-        self.image = pygame.image.load("./image/hero.gif")
-        self.bullet_list = [] # 存储发射出去的子弹对象引用
+        self.image = pygame.image.load(image_name)
+        self.bullet_list = []  # 存储发射出去的子弹对象引用
 
     def display(self):
-        self.screen.blit(self.image,(self.x,self.y))
+        self.screen.blit(self.image, (self.x, self.y))
         for bullet in self.bullet_list:
             bullet.display()
             bullet.move()
+            if bullet.judge():  # 判断子弹是否越界,否则一段时间之后会从底下飘上来
+                self.bullet_list.remove(bullet)
+
+    def fire(self):
+        self.bullet_list.append(Bullet(self.screen, self.x, self.y))
+
+
+# 飞机类
+class HeroPlane(BasePlane):
+    def __init__(self,screen_temp):
+        super().__init__(screen_temp, 230,700 ,"./image/hero.gif")
 
     def move_left(self):
         self.x -= 5
@@ -25,23 +36,69 @@ class HeroPlane(object):
     def move_right(self):
         self.x += 5
 
+
+class EnemyPlane(BasePlane):
+    """敌机的类"""
+    def __init__(self, screen_temp):
+        super().__init__(screen_temp, 0, 0, "./image/enemy0.png")
+        self.direction = "right"  # 用来存储飞机默认的显示方向
+
+    def move(self):
+        if self.direction == "right":
+            self.x += 5
+        elif self.direction == "left":
+            self.x -= 5
+        # 判断边界
+        if self.x > 430:
+            self.direction = "left"
+        elif self.x < 0:
+            self.direction = "right"
+
     def fire(self):
-        self.bullet_list.append(Bullet(self.screen,self.x,self.y))
+        random_num = random.randint(1,100)
+        if random_num == 8 or random_num == 20:
+            self.bullet_list.append(EnemyBullet(self.screen, self.x, self.y))
+
+
+class BaseBullet(object):
+    def __init__(self,screen_temp,x,y,img_name):
+        self.x = x
+        self.y = y
+        self.screen = screen_temp
+        self.image = pygame.image.load(img_name)
+
+    def display(self):
+        self.screen.blit(self.image, (self.x, self.y))
 
 
 # 子弹类
-class Bullet(object):
+class Bullet(BaseBullet):
     def __init__(self,screen_temp,x,y):
-        self.x = x + 40
-        self.y = y - 20
-        self.screen = screen_temp
-        self.image = pygame.image.load("./image/bullet.png")
-
-    def display(self):
-        self.screen.blit(self.image,(self.x,self.y))
+        super().__init__(screen_temp,x+40,y-20,"./image/bullet.png")
 
     def move(self):
         self.y -= 5
+
+    def judge(self):
+        if self.y < 0:
+            return True
+        else:
+            return False
+
+
+# 敌机子弹类
+class EnemyBullet(BaseBullet):
+    def __init__(self, screen_temp, x, y):
+        super().__init__(screen_temp, x + 25, y + 40, "./image/bullet-1.gif")
+
+    def move(self):
+        self.y += 5
+
+    def judge(self):
+        if self.y > 852:
+            return True
+        else:
+            return False
 
 
 # 键盘控制方法
@@ -76,10 +133,15 @@ def main():
     background = pygame.image.load("./image/background.jpg")
     # 创建一个自己飞机对象
     hero = HeroPlane(screen)
+    # 创建一个敌机
+    enemy = EnemyPlane(screen)
 
     while True:
         screen.blit(background,(0, 0))
         hero.display()
+        enemy.display()
+        enemy.move()
+        enemy.fire()
         key_control(hero)
         pygame.display.update()
         time.sleep(0.01)
